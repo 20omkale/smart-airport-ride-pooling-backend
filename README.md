@@ -2,126 +2,157 @@
 
 ## Overview
 
-This project implements a Smart Airport Ride Pooling Backend that groups passengers into shared cabs while respecting:
-
-* Maximum seat capacity (4 passengers per cab)
-* Maximum luggage capacity (6 items per cab)
-* Maximum detour tolerance (default 5 km)
-* Route optimization for minimal travel deviation
-
-The system is designed to support high concurrency, transactional consistency, and scalable ride pooling operations.
+This project implements a **Smart Airport Ride Pooling Backend** that groups passengers into shared cabs while optimizing routes and pricing.
+The system demonstrates scalable backend architecture using a queue-based matching worker and PostgreSQL persistence.
 
 ---
 
 ## Features
 
 * Ride request creation API
-* Ride matching and pooling algorithm (O(n²))
+* Ride pooling & matching algorithm
 * Seat and luggage constraint validation
-* Transaction-safe pool creation
-* Ride cancellation handling
+* Detour tolerance enforcement
 * Dynamic pricing calculation
-* Docker-based PostgreSQL and Redis setup
+* Ride cancellation handling
+* Redis queue-based asynchronous processing
+* Dockerized PostgreSQL and Redis setup
 
 ---
 
-## Technology Stack
+## Tech Stack
 
 * Node.js
 * TypeScript
 * Express.js
 * PostgreSQL
-* Knex.js (Migrations & Seeds)
-* Redis (future caching & queue processing)
+* Knex (Migrations & Seeds)
+* Redis
+* BullMQ (Queue Worker)
 * Docker
 
 ---
 
 ## Setup Instructions
 
-### 1. Start Infrastructure
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/20omkale/smart-airport-ride-pooling-backend.git
+cd smart-airport-ride-pooling-backend
+```
+
+### 2. Create Environment File
+
+Create `.env` file in project root:
+
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=ridepool
+PORT=3000
+```
+
+or run:
+
+```bash
+copy .env.example .env
+```
+
+### 3. Start Infrastructure
 
 ```bash
 docker compose up -d
 ```
 
-### 2. Install Dependencies
+### 4. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Run Database Migrations
+### 5. Run Database Migrations
 
 ```bash
 npx knex migrate:latest
 ```
 
-### 4. Seed Test Data
+### 6. Seed Sample Data
 
 ```bash
 npx knex seed:run
 ```
 
-### 5. Start Backend
+### 7. Start Backend
 
 ```bash
 npm run dev
 ```
 
-Server runs at:
+### 8. Start Matching Worker
 
-```
-http://localhost:3000
+Open another terminal:
+
+```bash
+npm run worker
 ```
 
 ---
 
 ## API Endpoints
 
-### Create Ride
-
-POST `/api/rides`
-
-### Run Matching
-
-POST `/api/rides/match`
-
-### Cancel Ride
-
-DELETE `/api/rides/:id`
+| Method | Endpoint         | Description           |
+| ------ | ---------------- | --------------------- |
+| POST   | /api/rides       | Create ride request   |
+| POST   | /api/rides/match | Trigger ride matching |
+| DELETE | /api/rides/:id   | Cancel ride           |
+| GET    | /api/rides       | Test endpoint         |
 
 ---
 
 ## Algorithm Approach
 
-Ride requests are compared pairwise to find compatible pools based on pickup and drop proximity.
+Ride matching uses pairwise comparison of ride requests to form pooling candidates while enforcing:
 
-* Matching complexity: **O(n²)**
-* Route optimization complexity: **O(k²)**
+* Seat capacity constraints
+* Luggage constraints
+* Detour tolerance limits
 
-This deterministic approach ensures reliable pooling decisions for moderate traffic volumes.
-Future versions can use spatial indexing (geohashing) for improved scalability.
+Route optimization uses a **Nearest-Neighbor VRP approximation** to minimize total travel deviation.
 
----
+### Complexity
 
-## Concurrency Strategy
-
-All pool creation operations use **database transactions and row-level locking** to ensure that simultaneous ride requests do not over-allocate seats or create inconsistent pools.
-
----
-
-## Performance Targets
-
-* Supports ~100 requests/sec locally
-* Matching latency under 300 ms
-* Horizontally scalable stateless API servers
+* Matching: **O(n²)**
+* Route optimization: **O(k²)**
+* Space complexity: **O(n)**
 
 ---
 
-## Future Improvements
+## Architecture Overview
 
-* Redis queue-based asynchronous matching
-* Geospatial indexing for faster ride search
-* ML-based dynamic surge pricing
-* Real-time driver dispatch integration
+Client → Express API → Redis Queue → Matching Worker → PostgreSQL
+
+The worker processes matching asynchronously to support high concurrency and maintain low API latency.
+
+---
+
+## Sample Test Passenger ID
+
+```
+11111111-1111-1111-1111-111111111111
+```
+
+---
+
+## Run Summary
+
+```bash
+docker compose up -d
+npm install
+npx knex migrate:latest
+npx knex seed:run
+npm run dev
+npm run worker
+```
