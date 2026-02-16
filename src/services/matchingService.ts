@@ -3,7 +3,7 @@ import { haversineDistance } from "../utils/distance";
 
 /**
  * Build optimized route using Nearest Neighbor approximation
- * This minimizes total deviation of pooled route
+ * Minimizes total travel deviation
  */
 function optimizeRoute(points: any[]) {
   if (points.length === 0) return [];
@@ -27,6 +27,7 @@ function optimizeRoute(points: any[]) {
           p.lat,
           p.lng
         );
+
         if (d < nearestDistance) {
           nearestDistance = d;
           nearestIndex = i;
@@ -60,6 +61,7 @@ function calculateRouteDistance(route: any[]) {
 
 /**
  * Match pending rides into pools minimizing deviation
+ * Supports grouping up to 4 rides per pool
  */
 export async function matchPendingRides() {
 
@@ -69,71 +71,59 @@ export async function matchPendingRides() {
   if (rides.length < 2) return;
 
   for (let i = 0; i < rides.length; i++) {
+
+    const group = [rides[i]];
+
     for (let j = i + 1; j < rides.length; j++) {
 
-      const r1 = rides[i];
-      const r2 = rides[j];
+      if (group.length >= 4) break;
+
+      const last = group[group.length - 1];
 
       const pickupDistance = haversineDistance(
-        r1.pickup_lat,
-        r1.pickup_lng,
-        r2.pickup_lat,
-        r2.pickup_lng
+        last.pickup_lat,
+        last.pickup_lng,
+        rides[j].pickup_lat,
+        rides[j].pickup_lng
       );
 
-      if (pickupDistance > 5) continue;
+      if (pickupDistance <= 5) {
+        group.push(rides[j]);
+      }
+    }
 
-      const points = [
-        { lat: r1.pickup_lat, lng: r1.pickup_lng },
-        { lat: r2.pickup_lat, lng: r2.pickup_lng },
-        { lat: r1.dropoff_lat, lng: r1.dropoff_lng },
-        { lat: r2.dropoff_lat, lng: r2.dropoff_lng }
-      ];
+    if (group.length < 2) continue;
 
-      const optimizedRoute = optimizeRoute(points);
+    const points: any[] = [];
 
-      const optimizedDistance = calculateRouteDistance(optimizedRoute);
+    group.forEach(r => {
+      points.push({ lat: r.pickup_lat, lng: r.pickup_lng });
+      points.push({ lat: r.dropoff_lat, lng: r.dropoff_lng });
+    });
 
-      const directDistance =
-        haversineDistance(
-          r1.pickup_lat,
-          r1.pickup_lng,
-          r1.dropoff_lat,
-          r1.dropoff_lng
-        ) +
-        haversineDistance(
-          r2.pickup_lat,
-          r2.pickup_lng,
-          r2.dropoff_lat,
-          r2.dropoff_lng
-        );
+    const optimizedRoute = optimizeRoute(points);
+    const optimizedDistance = calculateRouteDistance(optimizedRoute);
 
-      const deviation = optimizedDistance - directDistance;
+    const poolId = `POOL-${Date.now()}-${i}`;
 
-      // detour tolerance check
-      if (deviation > Math.max(r1.max_detour_km, r2.max_detour_km)) continue;
+    await db.transaction(async trx => {
 
-      const poolId = `POOL-${Date.now()}`;
-
-      await db.transaction(async trx => {
-
-        await trx("ride_requests")
-          .whereIn("id", [r1.id, r2.id])
-          .update({
-            status: "MATCHED",
-            pool_id: poolId
-          });
-
-        await trx("ride_pools").insert({
-          id: poolId,
-          total_passengers: r1.num_passengers + r2.num_passengers,
-          total_luggage: r1.luggage_count + r2.luggage_count,
-          total_distance_km: optimizedDistance
+      await trx("ride_requests")
+        .whereIn("id", group.map(r => r.id))
+        .update({
+          status: "MATCHED",
+          pool_id: poolId
         });
 
+      await trx("ride_pools").insert({
+        id: poolId,
+        total_passengers: group.reduce((a, b) => a + b.num_passengers, 0),
+        total_luggage: group.reduce((a, b) => a + b.luggage_count, 0),
+        total_distance_km: optimizedDistance
       });
 
-      console.log("Created optimized pool:", poolId);
-    }
+    });
+
+    console.log("Created multi-ride pool:", poolId);
   }
 }
