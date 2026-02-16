@@ -1,30 +1,24 @@
 # Algorithm Analysis
 
 ## Matching Algorithm
-
-The system groups pending ride requests using a pairwise comparison approach.
-
-### Steps
-1. Fetch all pending rides
-2. Compare each ride with others (pairwise)
-3. Check:
-   - Pickup distance ≤ 5 km
-   - Dropoff distance ≤ 5 km
-   - Seats ≤ 4
-   - Luggage ≤ 6
-4. Create ride pools transactionally
+Ride requests are compared pairwise to identify compatible pooling candidates based on pickup proximity, seat capacity, luggage capacity, and detour tolerance.
 
 ### Time Complexity
-Matching: O(n²)  
-Route optimization: O(k²)
+Matching Search: O(n²)
 
-Where:
-n = pending ride requests  
-k = rides in a pool
+Each ride request is compared with every other ride request to evaluate compatibility.
+
+Route Optimization: O(k²)
+
+Nearest Neighbor approximation is used to optimize route order among pooled passengers.
+
+Overall Complexity: O(n² + k²)
 
 ### Space Complexity
-O(n) for ride storage in memory
+O(n)
 
-### Why chosen
-The O(n²) approach ensures deterministic matching and is acceptable for the assignment-scale load.  
-In production, spatial indexing (R-tree / geohash) can reduce complexity.
+Stores ride requests and temporary pooling structures.
+
+## Optimization Strategy
+- Nearest Neighbor routing approximation minimizes total travel deviation.
+- Queue-based worker ensures asynchronous matching and prevents API latency spikes.

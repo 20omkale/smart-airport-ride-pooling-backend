@@ -1,6 +1,8 @@
 {
   "info": {
-    "name": "Ride Pooling API",
+    "name": "Smart Airport Ride Pooling API",
+    "_postman_id": "12345678-ridepool-api",
+    "description": "API collection for Smart Airport Ride Pooling Backend",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -8,11 +10,45 @@
       "name": "Create Ride",
       "request": {
         "method": "POST",
-        "header": [{"key":"Content-Type","value":"application/json"}],
-        "url": { "raw": "http://localhost:3000/api/rides" },
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\"passenger_id\":\"UUID\",\"pickup_lat\":18.52,\"pickup_lng\":73.85,\"dropoff_lat\":18.60,\"dropoff_lng\":73.90,\"num_passengers\":1,\"luggage_count\":1,\"max_detour_km\":5}"
+          "raw": "{\n  \"passenger_id\":\"11111111-1111-1111-1111-111111111111\",\n  \"pickup_lat\":18.5204,\n  \"pickup_lng\":73.8567,\n  \"dropoff_lat\":18.531,\n  \"dropoff_lng\":73.85,\n  \"num_passengers\":1,\n  \"luggage_count\":1,\n  \"max_detour_km\":5\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/rides",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api","rides"]
+        }
+      }
+    },
+    {
+      "name": "Trigger Matching",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "http://localhost:3000/api/rides/match",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api","rides","match"]
+        }
+      }
+    },
+    {
+      "name": "Cancel Ride",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost:3000/api/rides/{{rideId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["api","rides","{{rideId}}"]
         }
       }
     }
