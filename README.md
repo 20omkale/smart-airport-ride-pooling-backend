@@ -156,3 +156,12 @@ npx knex seed:run
 npm run dev
 npm run worker
 ```
+
+
+## Architecture Diagrams
+
+### High Level Architecture
+See: docs/architecture.md
+
+### Low Level Design
+See: docs/lld.md
